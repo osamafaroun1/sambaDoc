@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Samba Security Dashboard</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/typeit@8.7.0/dist/index.umd.js"></script>
+
+    <style>
+        :root {
+            --bg: #030712; /* Deep space black */
+            --panel: #0f172a; /* Dark blue panel */
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --primary: #0ea5e9; /* Cyber Blue */
+            --primary-glow: rgba(14, 165, 233, 0.5);
+            --success: #22c55e;
+            --border: #1e293b;
+            --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            --radius: 18px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: "Cairo", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.9;
+            cursor: none; /* Hide default cursor */
+            overflow-x: hidden;
+        }
+        
+        #cursor-dot, #cursor-ring {
+            position: fixed; top: 0; left: 0;
+            pointer-events: none; z-index: 9999;
+            transition: transform 0.1s ease-out;
+        }
+        #cursor-dot {
+            width: 6px; height: 6px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #cursor-ring {
+            width: 30px; height: 30px;
+            border: 1px solid var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s ease-out;
+        }
+        body.cursor-hover #cursor-ring {
+            transform: translate(-50%, -50%) scale(1.5);
+            border-color: #fff;
+            background-color: rgba(14, 165, 233, 0.1);
+        }
+
+        #bg-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100vh; z-index: -1;
+        }
+        .container {
+            width: min(1150px, 92%);
+            margin: auto; position: relative; z-index: 2;
+        }
+
+        header { padding: 50px 0 30px; }
+        .hero {
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 28px; padding: 40px;
+            box-shadow: var(--shadow);
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 40px; align-items: center;
+        }
+        .hero-text h1 {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            line-height: 1.3; font-weight: 800; color: #fff;
+            text-shadow: 0 0 10px var(--primary-glow), 0 0 20px var(--primary-glow);
+        }
+        .hero-text p {
+            color: var(--muted);
+            margin: 16px 0 24px;
+            font-size: 1.05rem;
+        }
+
+        #terminal {
+            background-color: #010409;
+            border: 1px solid var(--border);
+            border-radius: 12px; height: 300px;
+            padding: 15px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.1);
+            overflow: hidden;
+        }
+        .ti-cursor { color: var(--primary) !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .terminal-prompt { color: var(--success); }
+        .terminal-command { color: #e5e7eb; }
+
+        .layout { display: grid; grid-template-columns: 290px 1fr; gap: 22px; margin: 28px 0 50px; }
+        .sidebar {
+            position: sticky; top: 20px; align-self: start;
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 22px; padding: 20px;
+            box-shadow: var(--shadow);
+        }
+        .sidebar h3 {
+            margin-bottom: 14px; color: var(--primary);
+            font-size: 1rem; text-shadow: 0 0 8px var(--primary-glow);
+        }
+        .nav-links { display: flex; flex-direction: column; gap: 10px; }
+        .nav-links a {
+            text-decoration: none; color: var(--muted);
+            background: var(--bg); border: 1px solid var(--border);
+            padding: 11px 14px; border-radius: 12px;
+            transition: .2s ease;
+        }
+        .nav-links a:hover { color: #fff; border-color: var(--primary); background: #111827; }
+        .content { display: flex; flex-direction: column; gap: 22px; }
+        .card {
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 22px; padding: 26px;
+            box-shadow: var(--shadow);
+        }
+        .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .section-title .num {
+            width: 42px; height: 42px; display: grid; place-items: center;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05));
+            color: var(--primary); border: 1px solid rgba(14, 165, 233, 0.2);
+            font-weight: 800; text-shadow: 0 0 8px var(--primary-glow);
+        }
+        .section-title h2 { font-size: 1.45rem; margin: 0; color: #fff; }
+
+        .code-block { margin: 18px 0; border: 1px solid var(--border); border-radius: 18px; overflow: hidden; background: var(--bg); }
+        .code-header { display: flex; justify-content: space-between; align-items: center; background: #000; border-bottom: 1px solid var(--border); padding: 12px 15px; }
+        .code-header span { color: var(--primary); font-size: .92rem; font-weight: 700; }
+        pre { margin: 0; padding: 18px; overflow: auto; direction: ltr; text-align: left; }
+        code {
+            font-family: "Fira Code", monospace; font-size: .9rem;
+            color: #dbeafe; text-shadow: 0 0 5px rgba(219, 234, 254, 0.2);
+            white-space: pre;
+        }
+
+        .scroll-reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1); }
+        .scroll-reveal.visible { opacity: 1; transform: translateY(0); }
+        
+        .note, .warn, .success{ border-radius:16px; padding:16px 18px; margin:16px 0; border:1px solid transparent; }
+        .note{ background:rgba(56,189,248,.08); border-color:rgba(56,189,248,.2); }
+        .warn{ background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.25); }
+        .success{ background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.22); }
+        .grid-2{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:14px; }
+        .mini-card{ background: var(--bg); border:1px solid var(--border); border-radius:18px; padding:18px; }
+        .mini-card h4{ margin-bottom:8px; color:#f8fafc; }
+        .mini-card p{ margin-bottom:0; color:var(--muted); font-size:.97rem; }
+        .copy-btn{ background:#111827; color:#dbeafe; border:1px solid #243041; padding:9px 13px; border-radius:10px; cursor:none; font-family:inherit; transition:.2s ease; font-weight:700; }
+        .copy-btn:hover{ background:#162033; border-color:var(--primary); }
+        .table-wrap{ overflow:auto; margin-top:12px; }
+        table{ width:100%; border-collapse:collapse; min-width:700px; }
+        th, td{ padding:14px; border-bottom:1px solid var(--border); text-align:right; vertical-align:top; }
+        th{ background:var(--bg); color: var(--primary); font-weight:800; }
+        tr:hover td{ background:rgba(14, 165, 233, .05); }
+        .path-box{ background:var(--bg); border:1px dashed #28415e; color:#93c5fd; padding:14px 16px; border-radius:14px; direction:ltr; text-align:left; font-family:"Fira Code", monospace; margin:10px 0; overflow:auto; }
+        .footer{ padding:10px 0 45px; text-align:center; color:var(--muted); }
+        .highlight{ color:var(--primary); font-weight:700; text-shadow: 0 0 8px var(--primary-glow); }
+        .btn{ border:none; border-radius:12px; padding:12px 18px; font-family:inherit; font-weight:700; text-decoration:none; cursor:none; transition:.25s ease; display:inline-flex; align-items:center; gap:10px; }
+        .btn-primary{ background:linear-gradient(135deg, var(--primary), #0ea5e9); color:#fff; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .btn-primary:hover{ transform:translateY(-2px); filter:brightness(1.1); }
+        .btn-secondary{ background: var(--bg); color:var(--text); border:1px solid var(--border); }
+        .btn-secondary:hover{ border-color:var(--primary); transform:translateY(-2px); }
+
+        @media (max-width: 980px){
+            .hero { grid-template-columns: 1fr; }
+            .layout{ grid-template-columns:1fr; }
+            .sidebar{ position:relative; top:auto; }
+        }
+        @media (max-width: 700px){
+            .grid-2{ grid-template-columns:1fr; }
+            .hero{ padding:28px; }
+            .card{ padding:20px; }
+            .section-title h2{ font-size:1.2rem; }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <header class="container scroll-reveal">
+        <div class="hero">
+            <div class="hero-text">
+                <h1>توثيق إعداد Samba على Ubuntu</h1>
+                <p>
+                    هذا المستند يشرح إعداد <span class="highlight">مجلد عام</span> يمكن للجميع الدخول إليه بدون كلمة مرور،
+                    و<span class="highlight">مجلد خاص</span> محمي باسم المستخدم <span class="highlight">osama</span> وكلمة مرور Samba.
+                </p>
+                <div class="top-actions">
+                    <a href="#setup" class="btn btn-primary">ابدأ القراءة</a>
+                </div>
+            </div>
+            <div id="terminal"></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="layout">
+            <aside class="sidebar scroll-reveal">
+                <h3>محتويات الصفحة</h3>
+                <div class="nav-links">
+                    <a href="#overview">مقدمة سريعة</a>
+                    <a href="#setup">تجهيز المجلدات</a>
+                    <a href="#config">ملف الإعدادات الكامل</a>
+                    <a href="#config-details">شرح مفصل لملف الإعدادات</a>
+                    <a href="#restart">إضافة المستخدم وتفعيل الخدمة</a>
+                    <a href="#windows">الدخول من ويندوز</a>
+                    <a href="#tips">ملاحظات مهمة</a>
+                </div>
+            </aside>
+
+            <section class="content">
+                <div class="card scroll-reveal" id="overview">
+                    <div class="section-title"><div class="num">01</div><h2>مقدمة سريعة</h2></div>
+                    <p>الهدف من هذا الإعداد هو إنشاء مشاركتين على نفس الشبكة المحلية:</p>
+                    <div class="table-wrap">
+                        <table><thead><tr><th>المشاركة</th><th>الاسم</th><th>نوع الوصول</th><th>الحماية</th><th>المستخدم</th></tr></thead><tbody><tr><td>المجلد العام</td><td>Public</td><td>قراءة وكتابة</td><td>بدون كلمة مرور</td><td>الجميع</td></tr><tr><td>المجلد الخاص</td><td>Private</td><td>قراءة وكتابة</td><td>مقيد</td><td>osama فقط</td></tr></tbody></table>
+                    </div>
+                    <div class="note">هذا الدليل مناسب عندما تريد مشاركة ملفات داخل الشبكة المحلية بشكل مرتب، مع فصل واضح بين الملفات المفتوحة للجميع والملفات الخاصة.</div>
+                </div>
+
+                <div class="card scroll-reveal" id="setup">
+                    <div class="section-title"><div class="num">02</div><h2>الأوامر النهائية لتجهيز المجلدات</h2></div>
+                    <p>أول خطوة هي إنشاء المجلدات الفعلية على النظام ثم ضبط الملكية والصلاحيات لكل مجلد حسب الغرض منه.</p>
+                    <div class="code-block">
+                        <div class="code-header"><span>أوامر الطرفية</span><button class="copy-btn" onclick="copyCode('code-setup')">نسخ</button></div>
+                        <pre><code id="code-setup"># 1. إنشاء المجلدات إذا لم تكن موجودة
+sudo mkdir -p /home/osama/public_share
+sudo mkdir -p /home/osama/private_share
+
+# 2. ضبط المجلد العام (للجميع)
+sudo chown -R nobody:nogroup /home/osama/public_share
+sudo chmod -R 777 /home/osama/public_share
+
+# 3. ضبط المجلد الخاص (لأسامة فقط)
+sudo chown -R osama:osama /home/osama/private_share
+sudo chmod -R 700 /home/osama/private_share</code></pre>
+                    </div>
+                </div>
+                
+                <div class="card scroll-reveal" id="config">
+                    <div class="section-title"><div class="num">03</div><h2>ملف الإعدادات الكامل /etc/samba/smb.conf</h2></div>
+                    <div class="warn">قبل تعديل الملف، من الأفضل إنشاء نسخة احتياطية:<div class="path-box">sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.bak</div></div>
+                    <div class="code-block">
+                        <div class="code-header"><span>ملف الإعدادات</span><button class="copy-btn" onclick="copyCode('code-config')">نسخ</button></div>
+                        <pre><code id="code-config"># ================= Global Settings =================
+[global]
+   workgroup = WORKGROUP
+   server string = Osama Samba Server
+   netbios name = OSAMA-SRV
+   security = user
+   map to guest = bad user
+   dns proxy = no
+   socket options = TCP_NODELAY IPTOS_LOWDELAY
+
+# ================= Public Share (No Password) =================
+[Public]
+   comment = Everyone can access and write here
+   path = /home/osama/public_share
+   browsable = yes
+   writable = yes
+   read only = no
+   guest ok = yes
+   guest only = yes
+   force user = nobody
+   force group = nogroup
+   create mask = 0777
+   directory mask = 0777
+   force create mode = 0777
+   force directory mode = 0777
+
+# ================= Private Share (Password Required) =================
+[Private]
+   comment = Restricted access for Osama only
+   path = /home/osama/private_share
+   browsable = yes
+   writable = yes
+   read only = no
+   guest ok = no
+   valid users = osama
+   create mask = 0700
+   directory mask = 0700</code></pre>
+                    </div>
+                </div>
+
+                <div class="card scroll-reveal" id="config-details">
+                    <div class="section-title"><div class="num">04</div><h2>شرح مفصل لملف الإعدادات (سطر بسطر)</h2></div>
+                    <p>هذا الجدول يوضح وظيفة كل إعداد تم استخدامه في ملف <code>smb.conf</code>.</p>
+                    <h3>قسم [global] - الإعدادات العامة</h3>
+                    <div class="table-wrap">
+                        <table><thead><tr><th>الإعداد</th><th>الشرح التفصيلي</th></tr></thead><tbody>
+                            <tr><td><code>workgroup = WORKGROUP</code></td><td>يحدد اسم مجموعة العمل (Workgroup) التي سيظهر فيها الخادم على الشبكة. يجب أن يكون نفس الاسم المستخدم في أجهزة ويندوز لسهولة الاكتشاف.</td></tr>
+                            <tr><td><code>server string</code></td><td>وصف نصي للخادم يظهر في تفاصيل الشبكة (مثال: Osama Samba Server).</td></tr>
+                            <tr><td><code>netbios name = OSAMA-SRV</code></td><td>الاسم الفريد للخادم على الشبكة (مثل اسم الكمبيوتر). يستخدم هذا الاسم للوصول المباشر للمجلدات (مثلاً: \\OSAMA-SRV).</td></tr>
+                            <tr><td><code>security = user</code></td><td>يحدد أن الوصول للمجلدات يتطلب مصادقة المستخدمين (اسم مستخدم وكلمة مرور). هذا هو الإعداد الأكثر أمانًا وشيوعًا.</td></tr>
+                            <tr><td><code>map to guest = bad user</code></td><td>عندما يحاول شخص الدخول باسم مستخدم غير موجود في قاعدة بيانات Samba، يقوم هذا الإعداد بمعاملته كـ 'ضيف' (guest). هذا هو المفتاح الذي يسمح بالدخول للمجلد العام بدون كلمة مرور.</td></tr>
+                            <tr><td><code>dns proxy = no</code></td><td>يمنع Samba من محاولة العمل كخادم DNS، وهو إعداد موصى به للأداء والأمان في الشبكات البسيطة.</td></tr>
+                            <tr><td><code>socket options = TCP_NODELAY...</code></td><td>مجموعة من الخيارات لتحسين أداء وسرعة نقل الملفات على الشبكة المحلية.</td></tr>
+                        </tbody></table>
+                    </div>
+                    <h3>قسم [Public] - المجلد العام</h3>
+                    <div class="table-wrap">
+                        <table><thead><tr><th>الإعداد</th><th>الشرح التفصيلي</th></tr></thead><tbody>
+                            <tr><td><code>comment</code></td><td>تعليق وصفي للمجلد يظهر عند استعراض الشبكة.</td></tr>
+                            <tr><td><code>path = /home/osama/public_share</code></td><td>يحدد المسار الفعلي للمجلد على نظام لينكس.</td></tr>
+                            <tr><td><code>browsable = yes</code></td><td>يجعل المجلد ظاهرًا عند استعراض الشبكة.</td></tr>
+                            <tr><td><code>writable = yes</code> و <code>read only = no</code></td><td>يسمح بالكتابة داخل المجلد. هما وجهان لعملة واحدة.</td></tr>
+                            <tr><td><code>guest ok = yes</code></td><td>يسمح بدخول المستخدمين الضيوف (Guests) بدون كلمة مرور.</td></tr>
+                            <tr><td><code>guest only = yes</code></td><td>يجبر جميع من يدخلون هذا المجلد على أن يكونوا بصلاحيات 'ضيف'، مما يوحد الصلاحيات ويمنع التعارض.</td></tr>
+                            <tr><td><code>force user = nobody</code></td><td>يجبر أي ملف أو مجلد يتم إنشاؤه على أن يكون ملكاً للمستخدم النظامي `nobody`، وهو مستخدم بدون صلاحيات خاصة، مما يزيد الأمان ويمنع مشاكل الملكية.</td></tr>
+                            <tr><td><code>force group = nogroup</code></td><td>نفس فكرة `force user` ولكن للمجموعات، حيث يجبر الملفات على أن تنتمي للمجموعة `nogroup`.</td></tr>
+                            <tr><td><code>create mask / directory mask = 0777</code></td><td>يضمن أن أي ملف أو مجلد جديد يتم إنشاؤه يحصل على صلاحيات كاملة (قراءة، كتابة، تنفيذ للجميع).</td></tr>
+                            <tr><td><code>force create mode / force directory mode</code></td><td>يفرض الصلاحيات المذكورة في `create mask` حتى لو حاول النظام العميل (مثل ويندوز) تغييرها، وهذا يحل مشاكل الوصول.</td></tr>
+                        </tbody></table>
+                    </div>
+                     <h3>قسم [Private] - المجلد الخاص</h3>
+                    <div class="table-wrap">
+                        <table><thead><tr><th>الإعداد</th><th>الشرح التفصيلي</th></tr></thead><tbody>
+                            <tr><td><code>path = /home/osama/private_share</code></td><td>يحدد المسار الفعلي للمجلد الخاص على نظام لينكس.</td></tr>
+                            <tr><td><code>guest ok = no</code></td><td>يمنع دخول الضيوف بشكل قاطع. لا يمكن الوصول لهذا المجلد إلا بمستخدم وكلمة مرور صحيحة.</td></tr>
+                            <tr><td><code>valid users = osama</code></td><td>يحدد قائمة المستخدمين المسموح لهم بالوصول لهذا المجلد. هنا، فقط المستخدم `osama` مسموح له بالدخول.</td></tr>
+                            <tr><td><code>create mask / directory mask = 0700</code></td><td>يضمن أن أي ملف أو مجلد جديد ينشئه `osama` داخل هذا المجلد سيحصل على صلاحيات `700` (قراءة وكتابة وتنفيذ للمالك فقط)، مما يحافظ على خصوصية الملفات.</td></tr>
+                        </tbody></table>
+                    </div>
+                </div>
+
+                <div class="card scroll-reveal" id="restart">
+                    <div class="section-title"><div class="num">05</div><h2>إضافة المستخدم وتفعيل الخدمة</h2></div>
+                    <p>بعد تجهيز المجلدات وتعديل ملف الإعدادات، يجب إضافة المستخدم <strong>osama</strong> إلى قاعدة بيانات Samba، ثم إعادة تشغيل الخدمة لتطبيق التغييرات.</p>
+                    <div class="code-block">
+                        <div class="code-header"><span>أوامر نهائية</span><button class="copy-btn" onclick="copyCode('code-final')">نسخ</button></div>
+                        <pre><code id="code-final"># 4. إضافة أسامة لقاعدة بيانات السامبا (إذا لم تكن قد فعلت)
+sudo smbpasswd -a osama
+
+# 5. فحص الإعدادات للتأكد من عدم وجود خطأ
+sudo testparm
+
+# 6. إعادة تشغيل الخدمة لتفعيل كل شيء
+sudo systemctl restart smbd</code></pre>
+                    </div>
+                    <div class="note">عند تنفيذ أمر <strong>smbpasswd -a osama</strong> سيطلب منك إدخال كلمة مرور Samba مرتين. هذه الكلمة هي التي ستستخدمها عند الدخول إلى المجلد الخاص من ويندوز.</div>
+                </div>
+
+                <div class="card scroll-reveal" id="windows">
+                    <div class="section-title"><div class="num">06</div><h2>كيف تدخل على المجلدات من ويندوز؟</h2></div>
+                    <p>لتجنب مشكلة تعارض الهويات أو اختلاط تسجيل الدخول بين المجلد العام والمجلد الخاص، استخدم الطريقة التالية بشكل واضح:</p>
+                    <div class="grid-2">
+                        <div class="mini-card">
+                            <h4>الدخول إلى المجلد العام</h4><p>اكتب هذا المسار مباشرة في شريط العنوان داخل File Explorer:</p><div class="path-box">\\192.168.1.127\Public</div><p>هذا المجلد يفتح فوراً بدون طلب اسم مستخدم أو كلمة مرور.</p>
+                        </div>
+                        <div class="mini-card">
+                            <h4>الدخول إلى المجلد الخاص</h4><p>اكتب هذا المسار مباشرة في شريط العنوان:</p><div class="path-box">\\OSAMA-SRV\Private</div><p>سيطلب منك اسم المستخدم وكلمة المرور. أدخل:</p><div class="path-box">Username: osama</div><div class="path-box">Password: Samba Password</div>
+                        </div>
+                    </div>
+                    <div class="warn">السبب في استخدام <strong>IP</strong> مع المجلد العام و<strong>اسم الجهاز</strong> مع المجلد الخاص هو تقليل فرص حصول تعارض في الجلسات داخل ويندوز.</div>
+                    <div class="success">نصيحة محترف: إذا كنت تريد أن يكون المجلد الخاص ثابتاً دائماً على ويندوز، استخدم <strong>Map Network Drive</strong> مع تفعيل خيار <strong>Connect using different credentials</strong>.</div>
+                </div>
+
+                <div class="card scroll-reveal" id="tips">
+                    <div class="section-title"><div class="num">07</div><h2>ملاحظات مهمة قبل التجربة</h2></div>
+                    <p>حتى يعمل كل شيء بشكل صحيح، تأكد من النقاط التالية:</p>
+                    <div class="table-wrap">
+                        <table><thead><tr><th>النقطة</th><th>التوضيح</th></tr></thead><tbody><tr><td>تثبيت Samba</td><td>تأكد أن الحزمة مثبتة على أوبونتو قبل البدء.</td></tr><tr><td>عنوان IP</td><td>تأكد أن الجهاز يملك IP ثابت أو اعرف عنوانه الحالي.</td></tr><tr><td>الجدار الناري</td><td>إذا كان UFW مفعلاً، اسمح لخدمة Samba بالأمر: <code>sudo ufw allow samba</code></td></tr><tr><td>التحقق من الإعدادات</td><td>استخدم <code>sudo testparm</code> للتأكد أن الملف لا يحتوي على خطأ.</td></tr><tr><td>إعادة التشغيل</td><td>أي تعديل في smb.conf يحتاج غالباً إلى <code>sudo systemctl restart smbd</code></td></tr></tbody></table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <div class="container footer scroll-reveal">
+        <p>توثيق تعليمي لإعداد Samba على Ubuntu | تم التصميم بواسطة أسامة © 2024</p>
+    </div>
+
+    <script>
+        // --- 1. Custom Cursor ---
+        const cursorDot = document.querySelector("#cursor-dot"), cursorRing = document.querySelector("#cursor-ring");
+        const hoverables = document.querySelectorAll("a, button, .copy-btn");
+        window.addEventListener("mousemove", e => {
+            cursorDot.style.left = e.clientX + "px"; cursorDot.style.top = e.clientY + "px";
+            cursorRing.style.left = e.clientX + "px"; cursorRing.style.top = e.clientY + "px";
+        });
+        hoverables.forEach(el => {
+            el.addEventListener("mouseover", () => document.body.classList.add("cursor-hover"));
+            el.addEventListener("mouseout", () => document.body.classList.remove("cursor-hover"));
+        });
+
+        // --- 2. Scroll Reveal Animation ---
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => entry.isIntersecting && entry.target.classList.add('visible'));
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+
+        // --- 3. Automated Terminal ---
+        new TypeIt("#terminal", { speed: 50, startDelay: 900, loop: true, breakLines: false })
+            .type('<span class="terminal-prompt">[osama@OSAMA-SRV ~]$</span> <span class="terminal-command">sudo mkdir -p /home/osama/public_share</span>', { delay: 1200 }).delete(null, { delay: 500, speed: 80 })
+            .type('<span class="terminal-prompt">[osama@OSAMA-SRV ~]$</span> <span class="terminal-command">sudo chmod -R 777 /home/osama/public_share</span>', { delay: 1500 }).delete(null, { delay: 500, speed: 80 })
+            .type('<span class="terminal-prompt">[osama@OSAMA-SRV ~]$</span> <span class="terminal-command">sudo smbpasswd -a osama</span>', { delay: 1000 })
+            .type('<br>New SMB password: ****<br>Retype new SMB password: ****', { instant: true, delay: 500 }).delete(null, { delay: 500, speed: 80 })
+            .type('<span class="terminal-prompt">[osama@OSAMA-SRV ~]$</span> <span class="terminal-command">sudo systemctl restart smbd</span>', { delay: 1000 }).pause(3000).go();
+        
+        // --- 4. Toast Notification (FIXED) ---
+        function copyCode(id) {
+            navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+                showToast("تم نسخ المحتوى بنجاح!");
+            }, (err) => {
+                showToast("فشل النسخ.");
+                console.error('Copy failed:', err);
+            });
+        }
+        function showToast(message) {
+            let toast = document.createElement("div");
+            toast.textContent = message;
+            const styles = getComputedStyle(document.documentElement);
+            Object.assign(toast.style, {
+                position: 'fixed', left: '20px', bottom: '20px',
+                background: styles.getPropertyValue('--panel').trim(),
+                color: styles.getPropertyValue('--text').trim(),
+                border: `1px solid ${styles.getPropertyValue('--border').trim()}`,
+                padding: '12px 16px', borderRadius: '12px',
+                boxShadow: styles.getPropertyValue('--shadow').trim(),
+                zIndex: '9999', opacity: '0', transform: 'translateY(10px)',
+                transition: 'all .25s ease'
+            });
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity = "1"; toast.style.transform = "translateY(0)"; });
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateY(10px)";
+                setTimeout(() => toast.remove(), 250);
+            }, 2200);
+        }
+        
+        // --- 5. Three.js 3D Background ---
+        let scene, camera, renderer, grid, words = [];
+        function init3D() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 50;
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            grid = new THREE.GridHelper(400, 40, '#0f172a', '#1e293b');
+            scene.add(grid);
+            const techWords = ['sudo', 'samba', 'chmod', 'systemctl', 'chown', 'smb.conf', 'netbios', 'mkdir', '0777', 'private', 'public', 'linux', 'ubuntu', 'OSAMA-SRV'];
+            for (let i = 0; i < 100; i++) {
+                const word = createWordSprite(techWords[Math.floor(Math.random() * techWords.length)]);
+                word.position.set((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200);
+                word.velocity = new THREE.Vector3(0, Math.random() * 0.05 + 0.02, 0);
+                words.push(word); scene.add(word);
+            }
+            animate3D();
+        }
+        function createWordSprite(text) {
+            const canvas = document.createElement('canvas'), context = canvas.getContext('2d'), fontSize = 48;
+            context.font = `${fontSize}px "Fira Code", monospace`;
+            const width = context.measureText(text).width;
+            canvas.width = width; canvas.height = fontSize;
+            context.font = `${fontSize}px "Fira Code", monospace`;
+            context.fillStyle = 'rgba(14, 165, 233, 0.7)';
+            context.fillText(text, 0, fontSize - 10);
+            const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
+            sprite.scale.set(width / 10, fontSize / 10, 1);
+            return sprite;
+        }
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            const time = Date.now() * 0.00005;
+            camera.position.x = Math.sin(time) * 10;
+            camera.position.z = 50 + Math.cos(time) * 10;
+            camera.lookAt(scene.position);
+            words.forEach(word => { word.position.add(word.velocity); if (word.position.y > 100) word.position.y = -100; });
+            renderer.render(scene, camera);
+        }
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        init3D();
+    </script>
+</body>
+</html>
