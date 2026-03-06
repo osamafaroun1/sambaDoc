@@ -181,16 +181,110 @@
         .btn-secondary{ background: var(--bg); color:var(--text); border:1px solid var(--border); }
         .btn-secondary:hover{ border-color:var(--primary); transform:translateY(-2px); }
 
+        /* Tablet & Medium Screens */
         @media (max-width: 980px){
-            .hero { grid-template-columns: 1fr; }
-            .layout{ grid-template-columns:1fr; }
-            .sidebar{ position:relative; top:auto; }
+            .container { width: min(100%, 96%); }
+            .hero { 
+                grid-template-columns: 1fr; 
+                gap: 24px;
+                padding: 28px;
+            }
+            #terminal { height: 250px; font-size: 0.85rem; }
+            .layout{ grid-template-columns: 1fr; }
+            .sidebar{ position: relative; top: auto; width: 100%; }
+            .sidebar .nav-links { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+            .sidebar .nav-links a { flex: 1; min-width: 120px; }
+            .section-title h2 { font-size: 1.35rem; }
+            header { padding: 30px 0 20px; }
         }
-        @media (max-width: 700px){
-            .grid-2{ grid-template-columns:1fr; }
-            .hero{ padding:28px; }
-            .card{ padding:20px; }
-            .section-title h2{ font-size:1.2rem; }
+
+        /* Mobile Screens */
+        @media (max-width: 768px){
+            body { font-size: 0.95rem; }
+            .container { width: 95%; }
+            header { padding: 20px 0 15px; }
+            .hero { 
+                padding: 20px;
+                gap: 16px;
+                border-radius: 18px;
+            }
+            .hero-text h1 { font-size: clamp(1.5rem, 5vw, 2.2rem); }
+            .hero-text p { font-size: 0.95rem; margin: 12px 0 16px; }
+            #terminal { 
+                height: 200px; 
+                font-size: 0.8rem; 
+                padding: 12px;
+                border-radius: 10px;
+            }
+            .section-title { gap: 8px; }
+            .section-title .num { width: 36px; height: 36px; font-size: 0.9rem; }
+            .section-title h2 { font-size: 1.15rem; }
+            .card { padding: 16px; border-radius: 16px; }
+            .code-block { border-radius: 12px; }
+            .code-header { padding: 10px 12px; }
+            pre { padding: 12px; font-size: 0.8rem; }
+            code { font-size: 0.8rem; }
+            .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+            .mini-card { padding: 14px; }
+            .mini-card h4 { font-size: 0.95rem; }
+            .mini-card p { font-size: 0.9rem; }
+            .path-box { padding: 10px 12px; font-size: 0.75rem; }
+            .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table { min-width: 100%; font-size: 0.85rem; }
+            th, td { padding: 10px 8px; }
+            .note, .warn, .success { padding: 12px 14px; margin: 12px 0; font-size: 0.9rem; }
+            .btn { padding: 10px 14px; font-size: 0.9rem; gap: 6px; }
+            .copy-btn { padding: 7px 10px; font-size: 0.8rem; }
+            .sidebar .nav-links a { padding: 10px 12px; font-size: 0.9rem; }
+            .footer { padding: 8px 0 30px; font-size: 0.85rem; }
+        }
+
+        /* Small Mobile Screens */
+        @media (max-width: 480px){
+            .container { width: 96%; }
+            header { padding: 16px 0 10px; }
+            .hero { 
+                padding: 16px;
+                gap: 12px;
+            }
+            .hero-text h1 { font-size: clamp(1.3rem, 6vw, 1.8rem); line-height: 1.2; }
+            .hero-text p { font-size: 0.9rem; margin: 8px 0 12px; }
+            #terminal { 
+                height: 160px; 
+                font-size: 0.75rem; 
+                padding: 10px;
+            }
+            .section-title { flex-direction: column; gap: 6px; margin-bottom: 12px; }
+            .section-title .num { width: 32px; height: 32px; font-size: 0.8rem; }
+            .section-title h2 { font-size: 1rem; }
+            .card { padding: 14px; margin-bottom: 12px; }
+            .sidebar { margin-bottom: 12px; }
+            .sidebar .nav-links { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+            .sidebar .nav-links a { flex: none; width: 100%; }
+            .mini-card { padding: 12px; margin-bottom: 8px; }
+            .mini-card h4 { font-size: 0.9rem; margin-bottom: 6px; }
+            .path-box { padding: 8px 10px; font-size: 0.7rem; margin: 6px 0; }
+            table { font-size: 0.75rem; min-width: 100%; }
+            th, td { padding: 8px 6px; }
+            .code-header { padding: 8px 10px; }
+            pre { padding: 10px; font-size: 0.75rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .note, .warn, .success { padding: 10px 12px; margin: 8px 0; font-size: 0.85rem; }
+            .btn { width: 100%; justify-content: center; padding: 10px 12px; }
+            .copy-btn { padding: 6px 8px; font-size: 0.75rem; }
+            .footer { padding: 6px 0 20px; font-size: 0.8rem; }
+        }
+
+        /* Extra Small Screens */
+        @media (max-width: 360px){
+            .hero-text h1 { font-size: 1.2rem; }
+            .hero-text p { font-size: 0.85rem; }
+            #terminal { display: none; }
+            .section-title { gap: 4px; }
+            .section-title .num { width: 28px; height: 28px; font-size: 0.7rem; }
+            .section-title h2 { font-size: 0.95rem; }
+            table { font-size: 0.7rem; }
+            th, td { padding: 6px 4px; }
+            .path-box { font-size: 0.65rem; padding: 6px 8px; }
         }
 
     </style>
